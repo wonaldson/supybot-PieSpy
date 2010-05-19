@@ -40,6 +40,8 @@ import supybot.ircutils as ircutils
 import supybot.registry as registry
 import supybot.callbacks as callbacks
 
+DEBUG = True
+
 class PieSpy(callbacks.Plugin):
     """This plugin creates a social networking graph based on the connections
     between the users talking in your channels."""
@@ -50,11 +52,14 @@ class PieSpy(callbacks.Plugin):
         self.__parent = super(PieSpy, self)
         self.__parent.__init__(irc)
         for ircd in world.ircs:
+            #version =
             self.instances[ircd.network] = \
                 pyPie.PieInstance(ircd.nick, 
                                   ircd.network,
                                   outputDirectory=conf.supybot.directories.data.dirize("PieSpy/%s/images/" % ircd.network)
                                   )
+            for channel in ircd.state.channels:
+                irc.queueMsg(ircmsgs.names(channel))
     
     def doPrivmsg(self, irc, msg):
         if irc.isChannel(msg.args[0]):
@@ -87,6 +92,32 @@ class PieSpy(callbacks.Plugin):
         oldNick = msg.nick
         newNick = msg.args[0]
         self.instances[irc.network].onNickChange(oldNick, newNick)
+    
+    def do353(self, irc, msg):
+        # NAMES reply.
+        (_, type, channel, names) = msg.args
+        names = names.split()
+        names = [x.lstrip('@%+&~') for x in names]
+        self.instances[irc.network].onUserList(channel, names)
+    
+    if DEBUG:
+        def nodes(self, irc, msg, args, channel):
+            """[<channel>]
+        
+            Lists nodes in <channel>"""
+            pie = self.instances[irc.network]
+            irc.reply([str(x) for x in pie.graphs[channel].nodes.values()])
+        nodes = wrap(nodes, ['channel'])
+    
+        def edges(self, irc, msg, args, channel):
+            """[<channel>]
+            
+            Lists edges in <channel>"""
+            pie = self.instances[irc.network]
+            irc.reply([str(x) for x in pie.graphs[channel].edges.values()])
+        edges = wrap(edges, ['channel'])
+    #
+        
 
 
 Class = PieSpy
