@@ -30,7 +30,8 @@
 
 import pyPie
 
-import supybot.conf as conf
+import os
+
 import supybot.world as world
 import supybot.utils as utils
 from supybot.commands import *
@@ -40,7 +41,7 @@ import supybot.ircutils as ircutils
 import supybot.registry as registry
 import supybot.callbacks as callbacks
 
-DEBUG = True
+DEBUG = False
 
 class PieSpy(callbacks.Plugin):
     """This plugin creates a social networking graph based on the connections
@@ -53,12 +54,57 @@ class PieSpy(callbacks.Plugin):
         self.__parent.__init__(irc)
         for ircd in world.ircs:
             #version =
-            self.instances[ircd.network] = \
-                pyPie.PieInstance(ircd.nick, 
-                                  ircd.network,
-                                  outputDirectory=conf.supybot.directories.data.dirize("PieSpy/%s/images/" % ircd.network)
-                                  )
+            outputDirectory = os.path.join(
+                self.registryValue('image.outputDirectory'),
+                "%s/" % ircd.network
+                )
+            #outputDirectory = os.path.join(conf.supybot.directories.data.dirize("PieSpy/"), "%s/" % ircd.network)
+            netinstance = pyPie.PieInstance(
+                ircd.nick, 
+                ircd.network,
+                outputDirectory=outputDirectory,
+                createCurrent=self.registryValue('image.createCurrent'),
+                createArchive=self.registryValue('image.createArchive'),
+                createRestorePoints=self.registryValue('image.createRestorePoints'),
+                temporalDecayAmount=self.registryValue('advanced.temporalDecayAmount'),
+                springEmbedderIterations=self.registryValue('advanced.springEmbedderIterations'),
+                k=self.registryValue('advanced.k'),
+                c=self.registryValue('advanced.c'),
+                maxRepulsiveForceDistance=self.registryValue('advanced.maxRepulsiveForceDistance'),
+                maxNodeMovement=self.registryValue('advanced.maxNodeMovement'),
+                minDiagramSize=self.registryValue('advanced.minDiagramSize'),
+                borderSize=self.registryValue('advanced.borderSize'),
+                nodeRadius=self.registryValue('advanced.nodeRadius'),
+                edgeThreshold=self.registryValue('advanced.edgeThreshold'),
+                showEdges=self.registryValue('advanced.showEdges'),
+                adjacencyInferenceHeuristic=self.registryValue('heuristic.adjacencyInferenceHeuristic'),
+                binarySequenceInferenceHeuristic=self.registryValue('heuristic.binarySequenceInferenceHeuristic'),
+                directAddressingInferenceHeuristic=self.registryValue('heuristic.directAddressingInferenceHeuristic'),
+                indirectAddressingInferenceHeuristic=self.registryValue('heuristic.indirectAddressingInferenceHeuristic'),
+            )
+            self.instances[ircd.network] = netinstance
             for channel in ircd.state.channels:
+                ### Put the per-channel values into the channel's config
+                # get the graph
+                graph = netinstance.getGraph(channel)
+                # pull out the config and copy it
+                channelConfig = graph.config.copy()
+                # put in the values
+                channelConfig.update(
+                    outputWidth=self.registryValue('image.outputWidth', channel),
+                    outputHeight=self.registryValue('image.outputHeight', channel),
+                    backgroundColor=pyPie.getcolor(self.registryValue('color.backgroundColor', channel)),
+                    channelColor=pyPie.getcolor(self.registryValue('color.channelColor', channel)),
+                    labelColor=pyPie.getcolor(self.registryValue('color.labelColor', channel)),
+                    titleColor=pyPie.getcolor(self.registryValue('color.titleColor', channel)),
+                    nodeColor=pyPie.getcolor(self.registryValue('color.nodeColor', channel)),
+                    edgeColor=pyPie.getcolor(self.registryValue('color.edgeColor', channel)),
+                    borderColor=pyPie.getcolor(self.registryValue('color.borderColor', channel)),
+                    ignoreSet=self.registryValue('ignore.ignoreSet', channel),
+                )
+                # put the config in the graph
+                graph.config = channelConfig
+                # queue names update
                 irc.queueMsg(ircmsgs.names(channel))
     
     def doPrivmsg(self, irc, msg):
@@ -79,6 +125,28 @@ class PieSpy(callbacks.Plugin):
     def doJoin(self, irc, msg):
         channel = msg.args[0]
         sender = msg.nick
+        if (ircutils.strEqual(msg.nick, irc.nick)):
+            ### Put the per-channel values into the channel's config
+            # get the graph
+            graph = self.instances[irc.network].getGraph(channel)
+            # pull out the config and copy it
+            channelConfig = graph.config.copy()
+            # put in the values
+            channelConfig.update(
+                outputWidth=self.registryValue('image.outputWidth', channel),
+                outputHeight=self.registryValue('image.outputHeight', channel),
+                backgroundColor=pyPie.getcolor(self.registryValue('color.backgroundColor', channel)),
+                channelColor=pyPie.getcolor(self.registryValue('color.channelColor', channel)),
+                labelColor=pyPie.getcolor(self.registryValue('color.labelColor', channel)),
+                titleColor=pyPie.getcolor(self.registryValue('color.titleColor', channel)),
+                nodeColor=pyPie.getcolor(self.registryValue('color.nodeColor', channel)),
+                edgeColor=pyPie.getcolor(self.registryValue('color.edgeColor', channel)),
+                borderColor=pyPie.getcolor(self.registryValue('color.borderColor', channel)),
+                ignoreSet=self.registryValue('ignore.ignoreSet', channel),
+            )
+            # put the config in the graph
+            graph.config = channelConfig
+            
         self.instances[irc.network].onJoin(channel, sender)
     
     def doKick(self, irc, msg):

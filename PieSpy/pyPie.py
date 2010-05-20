@@ -163,22 +163,24 @@ class PieInstance:
     def add(self, channel, nick):
         if nick.lower() not in self.config['ignoreSet']:
             node = Node(nick)
-            key = channel.lower()
-        
-            graph = None
-            try:
-                graph = self.graphs[key]
-            except KeyError:
-                if self.config['createRestorePoints']:
-                    graph = self.readGraph(key)
-                    if graph is None:
-                        graph = Graph(channel, self.config)
-                        self.graphs[key] = graph
-                    else:
-                        graph.config = self.config
-                        self.graphs[key] = graph
-        
+            graph = self.getGraph(channel)
             graph.addNode(node)
+    
+    def getGraph(self, channel):
+        key = channel.lower()
+        
+        graph = None
+        try:
+            graph = self.graphs[key]
+        except KeyError:
+            if self.config['createRestorePoints']:
+                graph = self.readGraph(key)
+                if graph is None:
+                    graph = Graph(channel, self.config)
+                else:
+                    graph.config = self.config
+                self.graphs[key] = graph
+        return graph
     
     def changeNick(self, oldNick, newNick):
         for graph in self.graphs.values():

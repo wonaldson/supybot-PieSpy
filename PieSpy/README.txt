@@ -9,9 +9,12 @@ channels. A nice example can be seen here:
 
 	http://imgur.com/FrsJT.png
 
-The plugin is in a very early state and right now doesn't support
-configuring the graph output to the extent that the original PieSpy did.
-This will be worked on in the future.
+The plugin now supports configuring graph output and specializing it for
+different channels. After changing config values, though, you will have to
+reload the plugin in order for them to take effect. (Also, if you are
+installing the plugin over an old version that didn't support configuring
+graph output, you will have to restart your Supybot after installing to be
+able to load the updated version.)
 
 To install this plugin, place the PieSpy/ directory into your Supybot
 plugin directory and tell your bot to `load PieSpy`.
